@@ -10,10 +10,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 import database_manager.database_manager as database_manager
 import utils.current_time as current_time
+from config import URL_FEED
 from utils.threading_event import reprint_prompt
-
-URL_FEED = 'https://lenta.ru/rss/news/world'
-
 
 def extract_rss_feed(url: str) -> str | None:
     """
