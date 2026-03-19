@@ -1,5 +1,7 @@
 from config import *
 import threading
+
+
 from utils.current_time import get_current_time
 from utils.threading_event import input_active
 
@@ -10,6 +12,7 @@ from langchain_ollama import OllamaLLM
 from langchain_core.prompts import PromptTemplate
 import parser.parser as parser
 import database_manager.database_manager as database_manager
+import rag_engine.rag as rag_engine
 
 
 # Проверка доступности локальной Ollama
@@ -25,62 +28,6 @@ def check_ollama():
     except:
         print("X | Ollama недоступна...")
         return False
-
-
-def create_rag(db):
-    """
-        Создание rag
-    """
-
-    # Настройки retriever
-    retriever = db.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": 5}
-    )
-
-    # Промпт
-    template = """Используй следующий контекст для ответа на вопрос.
-        Если ответ не найден в контексте, скажи "Я не знаю ответа на основе предоставленного контекста."
-
-        Контекст:
-        {context}
-
-        Вопрос: {question}
-
-        Ответ:"""
-
-    prompt = PromptTemplate(
-        template=template,
-        input_variables=["context", "question"]
-    )
-
-    # Запуск LLM через Ollama
-    llm = OllamaLLM(
-        model=LLM_MODEL,
-        base_url=OLLAMA_BASE_URL,
-        temperature=0.5,
-        num_predict=512,
-    )
-
-    # Лямбда объединяет тексты из списка документов и передает в контекст/промпт LLM одним текстом с разделителями \n\n
-    rag_from_docs = (
-            RunnablePassthrough.assign(
-                context=lambda x: "\n\n".join(doc.page_content for doc in x["context"])
-            )
-            | prompt
-            | llm
-            | StrOutputParser()
-    )
-
-    rag = RunnableParallel(
-        {"context": retriever, "question": RunnablePassthrough()}
-    ).assign(result=rag_from_docs)
-
-    print("\n" + "=" * 50)
-    print("RAG с Ollama готов к труду и обороне")
-    print("=" * 50 + "\n")
-
-    return rag
 
 
 def main():
@@ -114,7 +61,7 @@ def main():
 
     parser_thread.start()
 
-    rag = create_rag(db_read_thread)
+    rag = rag_engine.create_rag(db_read_thread)
 
     # Цикл вопрос-ответ
     while True:
@@ -137,23 +84,13 @@ def main():
             answer = from_llm['result']
             source = from_llm['context']
 
-            # Если у модели нет ответа. Используем фразу отсутствия ответа из промпта
-            no_answer_phrase = "Я не знаю ответа на основе предоставленного контекста"
-
-            if no_answer_phrase in answer:
-                print(
-                    f"[{get_current_time()}] Милорд, в сообщениях шпиёнов ничегошеньки не сыскалось по сему вопросу...")
-                continue
-
-            # Нормальный ответ модели
+            # Ответ модели
             print(f"[{get_current_time()}] Ответствую, милорд. {answer}")
 
             # Источники ответа модели
             if source:
-                print(f"\nНамедни шпиёны сообщались нам:")
                 for i, doc in enumerate(source, 1):
-                    print(f"\n{i}. {doc.page_content[:500]}\n{doc.metadata.get('source', 'Неизвестный источник')}")
-
+                    print(f"\n{i}. [...{doc.page_content[:500]}...]\n{doc.metadata.get('source', 'Неизвестный источник')}")
 
         except Exception as e:
             print(f"[{get_current_time()}] Милорд, толмач лыка не вяжет. Ошибочка вышла:\n {e}")
