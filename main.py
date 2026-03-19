@@ -98,22 +98,20 @@ def main():
     if not database_manager.check_database_exists():
         database_manager.create_database()
 
-    # Создаем два подключения к БД в главном потоке во избежание rust ошибок
-
     db_read_thread = database_manager.connect_database()
     if db_read_thread:
-        print(f'[{get_current_time()}] Создано подключение к БД для рага: {db_read_thread}')
+        print(f'[{get_current_time()}] Создано подключение к БД для раг')
 
     db_write_thread = database_manager.connect_database()
     if db_write_thread:
-        print(f'[{get_current_time()}] Создано подключение к БД для парсера: {db_write_thread}')
+        print(f'[{get_current_time()}] Создано подключение к БД для парсера')
 
-    # Отдельный тред для парсинга
     parser_thread = threading.Thread(
         target=parser.parsing_worker,
         args=(db_write_thread, 900),
         daemon=True
     )
+
     parser_thread.start()
 
     rag = create_rag(db_read_thread)
@@ -137,7 +135,7 @@ def main():
             from_llm = rag.invoke(question)
 
             answer = from_llm['result']
-            source_docs = from_llm['context']
+            source = from_llm['context']
 
             # Если у модели нет ответа. Используем фразу отсутствия ответа из промпта
             no_answer_phrase = "Я не знаю ответа на основе предоставленного контекста"
@@ -151,11 +149,10 @@ def main():
             print(f"[{get_current_time()}] Ответствую, милорд. {answer}")
 
             # Источники ответа модели
-
-            if source_docs:
+            if source:
                 print(f"\nНамедни шпиёны сообщались нам:")
-                for i, doc in enumerate(source_docs, 1):
-                    print(f"\n{i}. {doc.page_content[:500]}.\n{doc.metadata.get('source', 'Неизвестный источник')}")
+                for i, doc in enumerate(source, 1):
+                    print(f"\n{i}. {doc.page_content[:500]}\n{doc.metadata.get('source', 'Неизвестный источник')}")
 
 
         except Exception as e:
