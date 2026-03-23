@@ -13,6 +13,7 @@ import utils.current_time as current_time
 from config import URL_FEED
 from utils.threading_event import reprint_prompt
 
+
 def extract_rss_feed(url: str) -> str | None:
     """
         Возвращает RSS фид.
@@ -201,6 +202,8 @@ def parsing_worker(db, interval=900):
                       f'полный текст | url: {item["link"]}')
 
             docs = split_text_to_docs(filtered_parsed_items)
+
+            print(f"\n[{current_time.get_current_time()}] Обновление базы...")
             database_manager.update_database(db, docs)
 
             print(f"\n[{current_time.get_current_time()}] База обновлена...")

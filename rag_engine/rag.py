@@ -3,7 +3,6 @@ from config import *
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_ollama import OllamaLLM
-from langchain_core.prompts import PromptTemplate
 
 import rag_engine.prompt as rag_engine
 
@@ -30,7 +29,7 @@ def create_rag(db):
         num_predict=512,
     )
 
-    # Лямбда объединяет тексты из списка документов и передает в контекст/промпт LLM одним текстом с разделителями \n\n
+    # Лямбда объединяет тексты из чанков и передает в LLM одним текстом с разделителями \n\n
     rag_from_docs = (
             RunnablePassthrough.assign(
                 context=lambda x: "\n\n".join(doc.page_content for doc in x["context"])
@@ -45,7 +44,7 @@ def create_rag(db):
     ).assign(result=rag_from_docs)
 
     print("\n" + "=" * 50)
-    print("RAG с Ollama готов к труду и обороне")
+    print("RAG с Ollama запущены, милорд.")
     print("=" * 50 + "\n")
 
     return rag

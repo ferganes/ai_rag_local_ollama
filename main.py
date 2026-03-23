@@ -1,15 +1,11 @@
+from agents.rag_re_act_agent import create_rag_agent
 from config import *
 import threading
-
 
 from utils.current_time import get_current_time
 from utils.threading_event import input_active
 
 import requests
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
-from langchain_ollama import OllamaLLM
-from langchain_core.prompts import PromptTemplate
 import parser.parser as parser
 import database_manager.database_manager as database_manager
 import rag_engine.rag as rag_engine
@@ -18,13 +14,11 @@ import rag_engine.rag as rag_engine
 # Проверка доступности локальной Ollama
 def check_ollama():
     try:
-        # Проверяем, запущена ли Ollama
         response = requests.get("http://localhost:11434", timeout=5)
 
         if response.status_code == 200:
             print(f"OK | Ollama найдена и работает с LLM {LLM_MODEL} и embedding {EMBEDDING_MODEL}.")
             return True
-
     except:
         print("X | Ollama недоступна...")
         return False
@@ -63,6 +57,9 @@ def main():
 
     rag = rag_engine.create_rag(db_read_thread)
 
+    # Создаем агента RAG
+    agent = create_rag_agent(rag)
+
     # Цикл вопрос-ответ
     while True:
         input_active.set()
@@ -77,20 +74,17 @@ def main():
             print(f"[{get_current_time()}] Милорд?!")
             continue
 
-        # Ответ LLM
         try:
-            from_llm = rag.invoke(question)
-
-            answer = from_llm['result']
-            source = from_llm['context']
+            result = agent.invoke({"input": question})
+            answer = result["output"]
 
             # Ответ модели
             print(f"[{get_current_time()}] Ответствую, милорд. {answer}")
 
-            # Источники ответа модели
-            if source:
-                for i, doc in enumerate(source, 1):
-                    print(f"\n{i}. [...{doc.page_content[:500]}...]\n{doc.metadata.get('source', 'Неизвестный источник')}")
+            # # Источники ответа модели
+            # if source:
+            #     for i, doc in enumerate(source, 1):
+            #         print(f"\n{i}. [...{doc.page_content[:500]}...]\n{doc.metadata.get('source', 'Неизвестный источник')}")
 
         except Exception as e:
             print(f"[{get_current_time()}] Милорд, толмач лыка не вяжет. Ошибочка вышла:\n {e}")
